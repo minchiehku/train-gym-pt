@@ -7,61 +7,112 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .container {
+        h1 {
             text-align: center;
         }
-        input[type="text"] {
-            width: 80%;
+        .chat-container {
+            width: 400px;
+            max-width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 15px;
+            overflow-y: auto;
+            height: 400px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-bubble {
             padding: 10px;
-            margin: 10px 0;
-            font-size: 16px;
+            margin: 5px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .user-bubble {
+            background-color: #d1e7ff;
+            align-self: flex-end;
+            text-align: right;
+        }
+        .bot-bubble {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+            text-align: left;
+        }
+        .input-container {
+            display: flex;
+            width: 100%;
+            max-width: 400px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px 0 0 5px;
         }
         button {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
             cursor: pointer;
+            border-radius: 0 5px 5px 0;
         }
-        #response {
-            margin-top: 20px;
-            font-size: 16px;
-            color: #333;
+        button:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-
-<div class="container">
     <h1>健身教練 Chatbot</h1>
-    <input type="text" id="userInput" placeholder="輸入您的問題，如「我想要增肌」">
-    <button onclick="getResponse()">發送</button>
-    <div id="response"></div>
-</div>
+    <div class="chat-container" id="chat-container"></div>
+    <div class="input-container">
+        <input type="text" id="user-input" placeholder="輸入您的問題...">
+        <button onclick="sendMessage()">發送</button>
+    </div>
 
-<script>
-    function getResponse() {
-        const userInput = document.getElementById("userInput").value;
-        const responseDiv = document.getElementById("response");
+    <script>
+        async function sendMessage() {
+            const userInput = document.getElementById("user-input").value;
+            if (userInput.trim() === "") return;
 
-        fetch("http://127.0.0.1:5000/api/get_suggestions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ "input": userInput })
-        })
-        .then(response => response.json())
-        .then(data => {
-            responseDiv.innerHTML = `<p>${data.Message.replace(/\n/g, "<br>")}</p>`;
-        })
-        .catch(error => {
-            responseDiv.innerHTML = `<p style="color: red;">發生錯誤：${error.message}</p>`;
-        });
-    }
-</script>
+            // 清空輸入框
+            document.getElementById("user-input").value = "";
 
+            // 顯示用戶輸入的訊息
+            addMessageToChat("user", userInput);
+
+            try {
+                const response = await fetch("http://127.0.0.1:5000/api/get_suggestions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ "input": userInput })
+                });
+                const data = await response.json();
+                
+                // 顯示機器人回應的訊息
+                addMessageToChat("bot", data.Message);
+            } catch (error) {
+                addMessageToChat("bot", "發生錯誤：無法獲取回應");
+            }
+        }
+
+        // 函數用來將訊息添加到聊天對話框
+        function addMessageToChat(sender, message) {
+            const chatContainer = document.getElementById("chat-container");
+            const messageElement = document.createElement("div");
+            messageElement.classList.add("chat-bubble");
+            messageElement.classList.add(sender === "user" ? "user-bubble" : "bot-bubble");
+            messageElement.innerText = message;
+            chatContainer.appendChild(messageElement);
+            
+            // 讓聊天視窗自動捲到底部
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
 </body>
 </html>

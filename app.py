@@ -1,17 +1,21 @@
 from flask import Flask, request, jsonify
+from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 from flask_cors import CORS
-from transformers import pipeline
 import pymysql
+import random
 
 app = Flask(__name__)
+CORS(app)
 
-# 初始化 NLP 模型
+# NLP 模型初始化
 classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+tokenizer = AutoTokenizer.from_pretrained("microsoft/DialoGPT-medium")
+model = AutoModelForCausalLM.from_pretrained("microsoft/DialoGPT-medium")
 
-# 通用的分類標籤，例如增肌、減脂、腹肌等
+# 通用的分類標籤
 general_labels = ["增肌", "減脂", "腹肌", "胸肌", "腿部"]
 
-# 對應每個通用標籤到特定的 BodyPart
+# 標籤到 BodyPart 的對應
 label_to_bodyparts = {
     "增肌": ["Lats", "Biceps", "Chest", "Triceps"],
     "減脂": ["Middle Back", "Lower Back", "Forearms", "Calves"],
@@ -20,70 +24,58 @@ label_to_bodyparts = {
     "腿部": ["Hamstrings", "Quadriceps", "Calves", "Glutes"]
 }
 
-# 資料庫連接函數
+# 資料庫連接
 def get_db_connection():
     return pymysql.connect(
         host="localhost",
         user="root",
-        password="springboot",  # 替換為您的 MySQL 密碼
+        password="springboot",
         database="gym_bot_db"
     )
 
-
-# 格式化運動描述，將專業術語簡化並增強可讀性
-def format_exercise_description(name, description):
-    if not description or description == "No description":
-        description = "這是一個有效的訓練，可以幫助增強目標肌群的力量和耐力。"
-    else:
-        # 簡化過於詳細的專業描述
-        if "self-myofascial release" in description:
-            description = "這是一種針對肌肉放鬆的自我按摩方式，適合用於減輕肌肉緊繃。"
-        elif "isometric hold" in description:
-            description = "這個動作專注於靜態肌肉收縮，有助於提升肌肉耐力。"
-        elif "concentration curl" in description:
-            description = "這是一個針對手臂肌群的專注訓練，有助於增強手臂力量。"
-        # 可以繼續添加更多關鍵字和簡化語句
-    return f"{name}：{description}"
-
-
-app = Flask(__name__)
-CORS(app)  # 啟用 CORS
-
-# API 路由，用於處理用戶輸入並返回推薦運動
-@app.route('/api/get_suggestions', methods=['POST'])
-def get_suggestions():
-    data = request.json
-    user_input = data.get("input")
-    
-    # 使用 NLP 模型進行意圖分類
-    result = classifier(user_input, general_labels)
-    best_match = result['labels'][0]  # 選擇最相關的標籤（意圖）
-    bodyparts = label_to_bodyparts.get(best_match, [])
-
-    # 根據意圖查詢對應的 BodyPart 資料
+# 獲取高評分且有描述的運動建議
+def get_high_rated_exercises(bodyparts, limit=2):
     connection = get_db_connection()
     cursor = connection.cursor()
-
-    # 構建 SQL 查詢語句，查找多個 BodyPart 的資料
     if bodyparts:
         format_strings = ','.join(['%s'] * len(bodyparts))
-        query = f"SELECT * FROM exercises WHERE BodyPart IN ({format_strings}) LIMIT 5"
+        query = f"SELECT Title, Description, Rating FROM exercises WHERE BodyPart IN ({format_strings}) AND Description IS NOT NULL ORDER BY Rating DESC LIMIT {limit}"
         cursor.execute(query, bodyparts)
         exercises = cursor.fetchall()
     else:
         exercises = []
-
     cursor.close()
     connection.close()
+    
+    # 格式化運動建議（僅顯示有描述且評分較高的動作）
+    formatted_exercises = [f"{row[0]}：{row[1]}" for row in exercises if row[1]]
+    return "\n".join(formatted_exercises)
 
-    # 格式化查詢結果
-    if exercises:
-        formatted_exercises = "\n".join([format_exercise_description(row[1], row[2]) for row in exercises])
-        message = f"您可以試試這些{best_match}訓練：\n{formatted_exercises}"
-    else:
-        message = f"抱歉，目前沒有找到相關的{best_match}訓練。"
+# API 路由
+@app.route('/api/get_suggestions', methods=['POST'])
+def get_suggestions():
+    data = request.json
+    user_id = data.get("user_id")
+    user_input = data.get("input")
 
-    return jsonify({"Message": message})
+    # NLP 分類
+    result = classifier(user_input, general_labels)
+    best_match = result['labels'][0]
+    bodyparts = label_to_bodyparts.get(best_match, [])
+
+    # 查詢數據庫獲取建議
+    exercise_suggestions = get_high_rated_exercises(bodyparts)
+
+    # 使用AI模型生成對話回應開場白
+    chat_input = f"{user_input} I need workout suggestions"
+    chat_history_ids = tokenizer.encode(chat_input, return_tensors='pt')
+    chat_response_ids = model.generate(chat_history_ids, max_length=100, pad_token_id=tokenizer.eos_token_id)
+    ai_response = tokenizer.decode(chat_response_ids[:, chat_history_ids.shape[-1]:][0], skip_special_tokens=True)
+
+    # 最終的回應
+    response_text = f"{ai_response}\n\n推薦的運動：\n{exercise_suggestions}"
+
+    return jsonify({"Message": response_text})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
