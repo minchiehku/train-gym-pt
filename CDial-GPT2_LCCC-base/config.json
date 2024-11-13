@@ -1,0 +1,11 @@
+{
+  "model_type": "gpt2",
+  "n_positions": 1024,
+  "n_ctx": 1024,
+  "n_embd": 768,
+  "n_layer": 12,
+  "n_head": 12,
+  "vocab_size": 21128,  
+  "bos_token_id": 101,  
+  "eos_token_id": 102   
+}
