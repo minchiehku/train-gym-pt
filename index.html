@@ -3,76 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>健身教練 Chatbot</title>
+    <title>TrainGymPT</title>
     <style>
+        /* General body styling with gradient background */
         body {
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to right, #1a73e8, #32a8f7);
+            color: #ffffff;
+            min-height: 100vh;
         }
+
+        /* Header styling with shadow effect */
         h1 {
-            text-align: center;
+            font-size: 2.5em;
+            margin-top: 30px;
+            font-weight: bold;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
         }
+
+        /* Chat container styling with rounded corners and shadow */
         .chat-container {
             width: 400px;
-            max-width: 100%;
+            max-width: 90%;
             border: 1px solid #ccc;
             border-radius: 10px;
             padding: 15px;
             overflow-y: auto;
             height: 400px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
+            background-color: #ffffff;
+            color: #000000;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
         }
+
+        /* Chat bubble styles for both user and bot */
         .chat-bubble {
             padding: 10px;
             margin: 5px;
             border-radius: 10px;
             max-width: 70%;
             word-wrap: break-word;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
         }
+
+        /* User chat bubble style with background color */
         .user-bubble {
             background-color: #d1e7ff;
             align-self: flex-end;
             text-align: right;
         }
+
+        /* Bot chat bubble style with background color */
         .bot-bubble {
             background-color: #f1f1f1;
             align-self: flex-start;
             text-align: left;
         }
+
+        /* Input container styling for positioning */
         .input-container {
             display: flex;
-            width: 100%;
+            width: 90%;
             max-width: 400px;
+            margin-bottom: 20px;
         }
+
+        /* Text input style */
         input[type="text"] {
             flex: 1;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px 0 0 5px;
+            font-size: 1em;
         }
+
+        /* Send button styling with hover effect */
         button {
             padding: 10px;
             border: none;
-            background-color: #007bff;
+            background-color: #ff4081;
             color: white;
+            font-size: 1em;
             cursor: pointer;
             border-radius: 0 5px 5px 0;
+            transition: background-color 0.3s ease;
         }
+
+        /* Hover effect for the button */
         button:hover {
-            background-color: #0056b3;
+            background-color: #ff0058;
         }
     </style>
 </head>
 <body>
-    <h1>健身教練 Chatbot</h1>
+    <h1>TrainGymPT</h1>
     <div class="chat-container" id="chat-container"></div>
     <div class="input-container">
-        <input type="text" id="user-input" placeholder="輸入您的問題...">
-        <button onclick="sendMessage()">發送</button>
+        <input type="text" id="user-input" placeholder="Enter your question...">
+        <button onclick="sendMessage()">Send</button>
     </div>
 
     <script>
@@ -80,10 +116,10 @@
             const userInput = document.getElementById("user-input").value;
             if (userInput.trim() === "") return;
 
-            // 清空輸入框
+            // Clear the input box
             document.getElementById("user-input").value = "";
 
-            // 顯示用戶輸入的訊息
+            // Display the user's message
             addMessageToChat("user", userInput);
 
             try {
@@ -94,14 +130,14 @@
                 });
                 const data = await response.json();
                 
-                // 顯示機器人回應的訊息
+                // Display the bot's response
                 addMessageToChat("bot", data.Message);
             } catch (error) {
-                addMessageToChat("bot", "發生錯誤：無法獲取回應");
+                addMessageToChat("bot", "Error: Unable to fetch response");
             }
         }
 
-        // 函數用來將訊息添加到聊天對話框
+        // Function to add message to chat container
         function addMessageToChat(sender, message) {
             const chatContainer = document.getElementById("chat-container");
             const messageElement = document.createElement("div");
@@ -110,7 +146,7 @@
             messageElement.innerText = message;
             chatContainer.appendChild(messageElement);
             
-            // 讓聊天視窗自動捲到底部
+            // Auto-scroll to the bottom of chat container
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     </script>
